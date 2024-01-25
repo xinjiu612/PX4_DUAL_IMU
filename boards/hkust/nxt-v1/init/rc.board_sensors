@@ -6,7 +6,7 @@
 board_adc start
 
 # # Internal SPI bus ICM24688P
-icm42688p -R 0 -s start
+# icm42688p -R 0 -s start
 
 # # Internal SPI bus BMI088 accel/gyro
 bmi088 -A -R 0 -s start

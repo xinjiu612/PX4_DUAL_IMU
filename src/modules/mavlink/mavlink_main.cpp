@@ -1400,7 +1400,7 @@ Mavlink::configure_streams_to_default(const char *configure_single_stream)
 	case MAVLINK_MODE_NORMAL:
 		configure_stream_local("ADSB_VEHICLE", unlimited_rate);
 		configure_stream_local("ALTITUDE", 1.0f);
-		configure_stream_local("ATTITUDE", 15.0f);
+		configure_stream_local("ATTITUDE", unlimited_rate);
 		configure_stream_local("ATTITUDE_QUATERNION", 10.0f);
 		configure_stream_local("ATTITUDE_TARGET", 2.0f);
 		configure_stream_local("AVAILABLE_MODES", 0.3f);
@@ -1462,9 +1462,9 @@ Mavlink::configure_streams_to_default(const char *configure_single_stream)
 		// Note: streams requiring low latency come first
 		configure_stream_local("TIMESYNC", 10.0f);
 		configure_stream_local("CAMERA_TRIGGER", unlimited_rate);
-		configure_stream_local("HIGHRES_IMU", 50.0f);
+		configure_stream_local("HIGHRES_IMU", unlimited_rate);
 		configure_stream_local("LOCAL_POSITION_NED", 30.0f);
-		configure_stream_local("ATTITUDE", 100.0f);
+		configure_stream_local("ATTITUDE", unlimited_rate);
 		configure_stream_local("ALTITUDE", 10.0f);
 		configure_stream_local("DISTANCE_SENSOR", 10.0f);
 		configure_stream_local("ESC_INFO", 10.0f);
@@ -1474,7 +1474,7 @@ Mavlink::configure_streams_to_default(const char *configure_single_stream)
 		configure_stream_local("ODOMETRY", 30.0f);
 
 		configure_stream_local("ADSB_VEHICLE", unlimited_rate);
-		configure_stream_local("ATTITUDE_QUATERNION", 50.0f);
+		configure_stream_local("ATTITUDE_QUATERNION", unlimited_rate);
 		configure_stream_local("ATTITUDE_TARGET", 10.0f);
 		configure_stream_local("AVAILABLE_MODES", 0.3f);
 		configure_stream_local("BATTERY_STATUS", 0.5f);
@@ -1535,7 +1535,9 @@ Mavlink::configure_streams_to_default(const char *configure_single_stream)
 		break;
 
 	case MAVLINK_MODE_EXTVISION:
-		configure_stream_local("HIGHRES_IMU", unlimited_rate);		// for VIO
+		configure_stream_local("HIGHRES_IMU", 1000.0f);		// for VIO
+		configure_stream_local("ATTITUDE_QUATERNION", 400.0f);
+		// configure_stream_local("ATTITUDE", 1000.0f); //Magic number
 
 	// FALLTHROUGH
 	case MAVLINK_MODE_EXTVISIONMIN:
