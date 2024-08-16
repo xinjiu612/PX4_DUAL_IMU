@@ -360,6 +360,47 @@ bool EKF2Selector::UpdateErrorScores()
 
 	return (primary_updated || updated);
 }
+// Quatf slerp(const Quatf& q1, const Quatf& q2, float t)
+// {
+
+
+//         Quatf result = q1 + t * (q2 - q1);
+//         return result.normalized();
+
+
+// }
+// Quatf slerp( Quatf& q1,  Quatf& q2, float t)
+// {
+//     // Compute the dot product (cosine of the angle)
+//     float dot = q1.dot(q2);
+
+//     // If the dot product is negative, slerp won't take the shorter path.
+//     // So we reverse one quaternion to take the shorter path.
+//     if (dot < 0.0f) {
+//         dot = -dot;
+// 	q2 = -q2;  // 反转 q2 的方向
+//     }
+//     Quatf result;
+//     // Threshold to use linear interpolation if quaternions are too close
+// //     const float SLERP_THRESHOLD = 0.9995f;
+//     const float SLERP_THRESHOLD = 0.95f;
+//     if (dot > SLERP_THRESHOLD) {
+//         // Perform linear interpolation and normalize
+//         result = q1 + t * (q2 - q1);
+//         return result.normalized();
+//     }
+
+//     // Compute the angle theta
+//     float theta = acosf(dot);
+//     float sin_theta = sqrtf(1.0f - dot * dot);
+
+//     // Compute weights
+//     float weight1 = sinf((1.0f - t) * theta) / sin_theta;
+//     float weight2 = sinf(t * theta) / sin_theta;
+// 	result=	q1 * weight1 + q2 * weight2;
+//     // Perform the slerp interpolation
+//     return result;
+// }
 
 void EKF2Selector::PublishVehicleAttitude()
 {
@@ -373,6 +414,39 @@ void EKF2Selector::PublishVehicleAttitude()
 			_attitude_instance_prev = _instance[_selected_instance].estimator_attitude_sub.get_instance();
 			instance_change = true;
 		}
+	// vehicle_attitude_s secondary_attitude;
+        // // 检查是否有第二个 EKF 实例数据
+      	// 	bool secondary_available = false;
+       	// 	 int secondary_instance = (_selected_instance == 0) ? 1 : 0;
+        // 	if (_instance[secondary_instance].estimator_attitude_sub.update(&secondary_attitude)) {
+        //    		 secondary_available = true;
+       	// 	 }
+        // // 进行加权平均，如果第二个 EKF 实例数据可用
+        // if (secondary_available) {
+        //     float weight_primary = 0.5f;  // 你可以根据需要调整权重
+        //     float weight_secondary = 1.0f - weight_primary;
+
+        //     Quatf q_primary(attitude.q);
+        //     Quatf q_secondary(secondary_attitude.q);
+
+        //     // 使用自定义的 slerp 进行四元数插值
+        //     Quatf q_smooth = slerp(q_primary, q_secondary, weight_secondary);
+
+        //     // 更新平滑后的四元数
+        //     q_smooth.copyTo(attitude.q);
+
+        //     // 对 delta_q_reset 进行加权平均
+        //     Quatf delta_q_primary(attitude.delta_q_reset);
+        //     Quatf delta_q_secondary(secondary_attitude.delta_q_reset);
+
+        //     // 对两个 delta_q_reset 进行插值
+        //     Quatf delta_q_smooth = slerp(delta_q_primary, delta_q_secondary, weight_secondary);
+
+        //     // 更新平滑后的 delta_q_reset
+        //     delta_q_smooth.copyTo(attitude.delta_q_reset);
+        // }
+
+
 
 		if (_attitude_last.timestamp != 0) {
 			if (!instance_change && (attitude.quat_reset_counter == _attitude_last.quat_reset_counter + 1)) {
@@ -400,6 +474,8 @@ void EKF2Selector::PublishVehicleAttitude()
 
 			publish = false;
 		}
+
+
 
 		// save last primary estimator_attitude as published with original resets
 		_attitude_last = attitude;

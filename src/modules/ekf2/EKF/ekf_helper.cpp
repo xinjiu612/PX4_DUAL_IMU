@@ -563,8 +563,12 @@ void Ekf::fuse(const VectorState &K, float innovation)
 	_state.pos = matrix::constrain(_state.pos - K.slice<State::pos.dof, 1>(State::pos.idx, 0) * innovation, -1.e6f, 1.e6f);
 
 	// gyro_bias
-	_state.gyro_bias = matrix::constrain(_state.gyro_bias - K.slice<State::gyro_bias.dof, 1>(State::gyro_bias.idx, 0) * innovation,
+	// if (this->control_status_flags().vehicle_at_rest)
+	// {
+			_state.gyro_bias = matrix::constrain(_state.gyro_bias - K.slice<State::gyro_bias.dof, 1>(State::gyro_bias.idx, 0) * innovation,
 					-getGyroBiasLimit(), getGyroBiasLimit());
+	// }
+
 
 	// accel_bias
 	_state.accel_bias = matrix::constrain(_state.accel_bias - K.slice<State::accel_bias.dof, 1>(State::accel_bias.idx, 0) * innovation,
