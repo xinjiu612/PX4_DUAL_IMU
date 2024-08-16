@@ -192,6 +192,8 @@ private:
 
 	// vehicle_attitude: reset counters
 	vehicle_attitude_s _attitude_last{};
+	vehicle_attitude_s secondary_attitude_last{};
+	int secondary_available_count;
 	matrix::Quatf _delta_q_reset{};
 	uint8_t _quat_reset_counter{0};
 

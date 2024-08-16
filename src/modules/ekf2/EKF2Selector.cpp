@@ -369,38 +369,38 @@ bool EKF2Selector::UpdateErrorScores()
 
 
 // }
-// Quatf slerp( Quatf& q1,  Quatf& q2, float t)
-// {
-//     // Compute the dot product (cosine of the angle)
-//     float dot = q1.dot(q2);
+Quatf slerp( Quatf& q1,  Quatf& q2, float t)
+{
+    // Compute the dot product (cosine of the angle)
+    float dot = q1.dot(q2);
 
-//     // If the dot product is negative, slerp won't take the shorter path.
-//     // So we reverse one quaternion to take the shorter path.
-//     if (dot < 0.0f) {
-//         dot = -dot;
-// 	q2 = -q2;  // 反转 q2 的方向
-//     }
-//     Quatf result;
-//     // Threshold to use linear interpolation if quaternions are too close
-// //     const float SLERP_THRESHOLD = 0.9995f;
-//     const float SLERP_THRESHOLD = 0.95f;
-//     if (dot > SLERP_THRESHOLD) {
-//         // Perform linear interpolation and normalize
-//         result = q1 + t * (q2 - q1);
-//         return result.normalized();
-//     }
+    // If the dot product is negative, slerp won't take the shorter path.
+    // So we reverse one quaternion to take the shorter path.
+    if (dot < 0.0f) {
+        dot = -dot;
+	q2 = -q2;  // 反转 q2 的方向
+    }
+    Quatf result;
+    // Threshold to use linear interpolation if quaternions are too close
+//     const float SLERP_THRESHOLD = 0.9995f;
+    const float SLERP_THRESHOLD = 0.995f;
+    if (dot > SLERP_THRESHOLD) {
+        // Perform linear interpolation and normalize
+        result = q1 + t * (q2 - q1);
+        return result.normalized();
+    }
 
-//     // Compute the angle theta
-//     float theta = acosf(dot);
-//     float sin_theta = sqrtf(1.0f - dot * dot);
+    // Compute the angle theta
+    float theta = acosf(dot);
+    float sin_theta = sqrtf(1.0f - dot * dot);
 
-//     // Compute weights
-//     float weight1 = sinf((1.0f - t) * theta) / sin_theta;
-//     float weight2 = sinf(t * theta) / sin_theta;
-// 	result=	q1 * weight1 + q2 * weight2;
-//     // Perform the slerp interpolation
-//     return result;
-// }
+    // Compute weights
+    float weight1 = sinf((1.0f - t) * theta) / sin_theta;
+    float weight2 = sinf(t * theta) / sin_theta;
+	result=	q1 * weight1 + q2 * weight2;
+    // Perform the slerp interpolation
+    return result;
+}
 
 void EKF2Selector::PublishVehicleAttitude()
 {
@@ -414,38 +414,145 @@ void EKF2Selector::PublishVehicleAttitude()
 			_attitude_instance_prev = _instance[_selected_instance].estimator_attitude_sub.get_instance();
 			instance_change = true;
 		}
-	// vehicle_attitude_s secondary_attitude;
-        // // 检查是否有第二个 EKF 实例数据
-      	// 	bool secondary_available = false;
-       	// 	 int secondary_instance = (_selected_instance == 0) ? 1 : 0;
-        // 	if (_instance[secondary_instance].estimator_attitude_sub.update(&secondary_attitude)) {
-        //    		 secondary_available = true;
-       	// 	 }
-        // // 进行加权平均，如果第二个 EKF 实例数据可用
-        // if (secondary_available) {
-        //     float weight_primary = 0.5f;  // 你可以根据需要调整权重
+	vehicle_attitude_s secondary_attitude;
+        // 检查是否有第二个 EKF 实例数据
+      		bool secondary_available = false;
+       		 int secondary_instance = (_selected_instance == 0) ? 1 : 0;
+        	if (_instance[secondary_instance].estimator_attitude_sub.update(&secondary_attitude))
+		 {
+           		  secondary_available_count ++;
+			  secondary_available = true;
+			  if(secondary_available_count>30)
+			  {
+				secondary_available_count=30;
+			  }
+       		 }
+		 else
+		 {
+			secondary_available = false;
+			secondary_available_count--;
+			  if(secondary_available_count<0)
+			  {
+				secondary_available_count=0;
+			  }
+		 }
+
+        // 进行加权平均，如果第二个 EKF 实例数据可用
+	// static bool sencond_unuseful_flag;
+
+	Quatf q_smooth_last,delta_q_smooth_last;
+	static bool sencond_unuseful_flag;
+	static Quatf q_secondary_last;
+	static Quatf delta_q_secondary_last;
+	static Quatf q_primary_last;
+	static Quatf delta_q_primary_last;
+         if (secondary_available_count>10)
+	 {
+	     sencond_unuseful_flag = 0;
+	    static float selected_ratio = selected_ratio*0.99f+_instance[_selected_instance].combined_test_ratio*0.01f;
+	    if(selected_ratio>1.f)
+	    selected_ratio=1.f;
+	    else if(selected_ratio<0.f)
+	    {
+		selected_ratio=0.f;
+	    }
+	    static float secondary_ratio = secondary_ratio*0.99f+_instance[secondary_instance].combined_test_ratio*0.01f;
+	  if(secondary_ratio>1.f)
+	    secondary_ratio=1.f;
+	    else if(secondary_ratio<0.f)
+	    {
+		secondary_ratio=0.f;
+	    }
+	    float weight_primary = selected_ratio/(selected_ratio+secondary_ratio);
+
+        //     float weight_primary =_instance[_selected_instance].combined_test_ratio/
+	//     (_instance[_selected_instance].combined_test_ratio+_instance[secondary_instance].combined_test_ratio) ;  // 你可以根据需要调整权重
         //     float weight_secondary = 1.0f - weight_primary;
+	//     float weight_primary = 0.5 ;
 
-        //     Quatf q_primary(attitude.q);
-        //     Quatf q_secondary(secondary_attitude.q);
+            Quatf q_primary(attitude.q);
+	    Quatf delta_q_primary(attitude.delta_q_reset);
+	    Quatf q_secondary(secondary_attitude.q);
+	    Quatf delta_q_secondary(secondary_attitude.delta_q_reset);
 
-        //     // 使用自定义的 slerp 进行四元数插值
-        //     Quatf q_smooth = slerp(q_primary, q_secondary, weight_secondary);
+	    if(secondary_available == true)
+	    {
+		q_secondary_last = q_secondary;
+		delta_q_secondary_last = delta_q_secondary;
+		q_primary_last = q_primary;
+		delta_q_primary_last = delta_q_primary;
+	    }
+	    else
+	    {
+		if(instance_change==1)
+		{
+		q_secondary = q_primary_last;
+	        delta_q_secondary = delta_q_primary_last;
+		}
+		else
+		{
+		q_secondary = q_secondary_last;
+	        delta_q_secondary = delta_q_secondary_last;
+		}
 
-        //     // 更新平滑后的四元数
-        //     q_smooth.copyTo(attitude.q);
 
-        //     // 对 delta_q_reset 进行加权平均
-        //     Quatf delta_q_primary(attitude.delta_q_reset);
-        //     Quatf delta_q_secondary(secondary_attitude.delta_q_reset);
+	    }
 
-        //     // 对两个 delta_q_reset 进行插值
-        //     Quatf delta_q_smooth = slerp(delta_q_primary, delta_q_secondary, weight_secondary);
 
-        //     // 更新平滑后的 delta_q_reset
-        //     delta_q_smooth.copyTo(attitude.delta_q_reset);
-        // }
 
+            // 使用自定义的 slerp 进行四元数插值
+            Quatf q_smooth = slerp(q_primary, q_secondary, weight_primary);
+
+            // 更新平滑后的四元数
+            q_smooth.copyTo(attitude.q);
+	    q_smooth_last = q_smooth;
+            // 对 delta_q_reset 进行加权平均
+
+
+            // 对两个 delta_q_reset 进行插值
+            Quatf delta_q_smooth = slerp(delta_q_primary, delta_q_secondary, weight_primary);
+
+            // 更新平滑后的 delta_q_reset
+            delta_q_smooth.copyTo(attitude.delta_q_reset);
+	    delta_q_smooth_last = delta_q_smooth;
+        }
+	else if (secondary_available_count<10&&secondary_available_count>0)
+	{
+            Quatf q_primary(attitude.q);
+	    Quatf delta_q_primary(attitude.delta_q_reset);
+	//     Quatf q_primary_last_1(_attitude_last.q);
+	//     Quatf delta_q_primary_last_1(_attitude_last.q);
+
+	    Quatf q_primary_last_filter;
+	    Quatf delta_q_primary_last_filter;
+            float weight_primary = 0.75f;
+	    if (sencond_unuseful_flag == 0)
+	    {
+		sencond_unuseful_flag = 1;
+
+		if(instance_change==1)
+		{
+		    q_primary_last_filter = q_primary_last;
+	            delta_q_primary_last_filter = delta_q_primary_last;
+		}
+		else
+		{
+		    q_primary_last_filter = q_secondary_last;
+	            delta_q_primary_last_filter = delta_q_secondary_last;
+		}
+	    }
+	    Quatf q_smooth = slerp(q_primary, q_primary_last_filter, weight_primary);
+            Quatf delta_q_smooth = slerp(delta_q_primary, delta_q_primary_last_filter, weight_primary);
+
+	    q_smooth.copyTo(attitude.q);
+	    delta_q_smooth.copyTo(attitude.delta_q_reset);
+	}
+	else if(_available_instances>=2)
+	{
+	    q_smooth_last.copyTo(attitude.q);
+	    delta_q_smooth_last.copyTo(attitude.delta_q_reset);
+	}
+	_vehicle_attitude_pub.publish(attitude);
 
 
 		if (_attitude_last.timestamp != 0) {
